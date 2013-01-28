@@ -31,12 +31,17 @@ try:
 except ImportError:
     import unittest
 
-from M2Crypto import Err, Rand, SSL, m2, six
+from M2Crypto import Err, Rand, SSL, m2, six, util
 from tests import plat_debian, plat_fedora
 from tests.fips import fips_mode
 
+logging.basicConfig(format='%(levelname)s:%(funcName)s:%(message)s',
+                    level=logging.DEBUG)
 log = logging.getLogger('test_SSL')
 
+# FIXME
+# It would be probably better if the port was randomly selected.
+# https://fedorahosted.org/libuser/browser/tests/alloc_port.c
 srv_host = 'localhost'
 
 
@@ -133,7 +138,7 @@ class BaseSSLClientTestCase(unittest.TestCase):
 
     def http_get(self, s):
         s.send('GET / HTTP/1.0\n\n')
-        resp = ''
+        resp = b''
         while 1:
             try:
                 r = s.recv(4096)
@@ -142,7 +147,7 @@ class BaseSSLClientTestCase(unittest.TestCase):
             except SSL.SSLError:  # s_server throws an 'unexpected eof'...
                 break
             resp = resp + r
-        return resp
+        return util.py3str(resp)
 
     def setUp(self):
         self.srv_host = srv_host
@@ -172,7 +177,7 @@ class HttpslibSSLClientTestCase(BaseSSLClientTestCase):
             c.close()
         finally:
             self.stop_server(pid)
-        self.assertIn('s_server -quiet -www', data)
+        self.assertIn('s_server -quiet -www', util.py3str(data))
 
     def test_HTTPSConnection_resume_session(self):
         pid = self.start_server(self.args)
@@ -397,7 +402,8 @@ class MiscSSLClientTestCase(BaseSSLClientTestCase):
             try:
                 s.connect(self.srv_addr)
             except SSL.SSLError as e:
-                self.assertIn(e[0], ['wrong version number', 'unexpected eof'])
+                self.assertIn(sslerror_text(e),
+                              ['wrong version number', 'unexpected eof'])
             s.close()
         finally:
             self.stop_server(pid)
@@ -447,7 +453,8 @@ class MiscSSLClientTestCase(BaseSSLClientTestCase):
             try:
                 s.connect(self.srv_addr)
             except SSL.SSLError as e:
-                self.assertEqual(e[0], 'sslv3 alert handshake failure')
+                self.assertEqual(sslerror_text(e),
+                                 'sslv3 alert handshake failure')
             s.close()
         finally:
             self.stop_server(pid)
@@ -462,7 +469,7 @@ class MiscSSLClientTestCase(BaseSSLClientTestCase):
             try:
                 s.connect(self.srv_addr)
             except SSL.SSLError as e:
-                self.assertEqual(e[0], 'no ciphers available')
+                self.assertEqual(sslerror_text(e), 'no ciphers available')
             s.close()
         finally:
             self.stop_server(pid)
@@ -816,9 +823,9 @@ class MiscSSLClientTestCase(BaseSSLClientTestCase):
                 s.connect(self.srv_addr)
             except SSL.SSLError as e:
                 assert 0, e
-            bio = s.makefile('rw')
+            bio = s.makefile('rwb')
             # s.close()  # XXX bug 6628?
-            bio.write('GET / HTTP/1.0\n\n')
+            bio.write(b'GET / HTTP/1.0\n\n')
             bio.flush()
             data = bio.read()
             bio.close()
@@ -842,9 +849,11 @@ class MiscSSLClientTestCase(BaseSSLClientTestCase):
             del f
             del s
             err_code = Err.peek_error_code()
-            assert not err_code, 'Unexpected error: %s' % err_code
+            self.assertEqual(err_code, 0,
+                             'Unexpected error: %s' % err_code)
             err = Err.get_error()
-            assert not err, 'Unexpected error: %s' % err
+            log.debug('err = %s, type %s', err, type(err))
+            self.assertIsNone(err, 'Unexpected error: %s' % err)
         finally:
             self.stop_server(pid)
         self.assertIn('s_server -quiet -www', data)
