@@ -2,11 +2,11 @@
 /* Copyright (c) 2005-2006 Open Source Applications Foundation. All rights reserved. */
 
 /* We are converting between the Python arbitrarily long integer and
- * the BIGNUM arbitrarily long integer by converting to and from
- * a string representation of the number (in hexadecimal).
- * Direct manipulation would be a possibility, but would require
- * tighter integration with the Python and OpenSSL internals.
- */
+* the BIGNUM arbitrarily long integer by converting to and from
+* a string representation of the number (in hexadecimal).
+* Direct manipulation would be a possibility, but would require
+* tighter integration with the Python and OpenSSL internals.
+*/
 
 
 %{
@@ -53,7 +53,12 @@ PyObject *bn_rand_range(PyObject *range)
     char *randhex, *rangehex;
     
     /* Wow, it's a lot of work to convert into a hex string in C! */
+#if PY_MAJOR_VERSION >= 3
+    format = PyUnicode_FromString("%x");
+#else
     format = PyString_FromString("%x");
+#endif // PY_MAJOR_VERSION >= 3
+
     if (!format) {
         return NULL;
     }
@@ -65,16 +70,27 @@ PyObject *bn_rand_range(PyObject *range)
     }
     Py_INCREF(range);
     PyTuple_SET_ITEM(tuple, 0, range);
+
+#if PY_MAJOR_VERSION >= 3
+    rangePyString = PyUnicode_Format(format, tuple);
+#else
     rangePyString = PyString_Format(format, tuple);
+#endif // PY_MAJOR_VERSION >= 3
+
     if (!rangePyString) {
-        PyErr_SetString(PyExc_Exception, "PyString_Format failed");    
+        PyErr_SetString(PyExc_Exception, "String Format failed");    
         Py_DECREF(format);
         Py_DECREF(tuple);
         return NULL;    
     }
     Py_DECREF(format);
     Py_DECREF(tuple);
+
+#if PY_MAJOR_VERSION >= 3
+    rangehex = PyUnicode_AsUTF8(rangePyString);
+#else
     rangehex = PyString_AsString(rangePyString);
+#endif // PY_MAJOR_VERSION >= 3
     
     if (!BN_hex2bn(&rng, rangehex)) {
         /*Custom errors?*/
@@ -84,16 +100,16 @@ PyObject *bn_rand_range(PyObject *range)
     }
 
     Py_DECREF(rangePyString);
-                 
+                
     BN_init(&rnd);
 
-     if (!BN_rand_range(&rnd, rng)) {
+    if (!BN_rand_range(&rnd, rng)) {
         /*Custom errors?*/
         PyErr_SetString(PyExc_Exception, ERR_reason_error_string(ERR_get_error()));
         BN_free(&rnd);
         BN_free(rng);
         return NULL;         
-     }
+    }
 
     BN_free(rng);
 
