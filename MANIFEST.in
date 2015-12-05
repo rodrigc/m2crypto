@@ -9,4 +9,3 @@ include README.rst
 include CHANGES
 include epydoc.conf
 include LICENCE
-exclude M2Crypto/_m2crypto.py

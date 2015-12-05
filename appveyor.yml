@@ -6,6 +6,12 @@ environment:
     CMD_IN_ENV: "cmd /E:ON /V:ON /C .\\appveyor\\run_with_env.cmd"
     OPENSSL_PATH: "C:\\Program Files\\OpenSSL"
 
+    # PyPI login environment:
+    USER:
+        secure: oqWqarxnd4H23FMywnlQeg==
+    PASS:
+        secure: j/VSxdYJ7mdR44u8OdywLg==
+
   matrix:
 
     # Pre-installed Python versions, which Appveyor may upgrade to
@@ -14,24 +20,27 @@ environment:
     - PYTHON: "C:\\Python27"
       PYTHON_VERSION: "2.7.x" # currently 2.7.9
       PYTHON_ARCH: "32"
+      OPENSSL_PATH: "C:\\OpenSSL-Win32"
 
     - PYTHON: "C:\\Python27-x64"
       PYTHON_VERSION: "2.7.x" # currently 2.7.9
       PYTHON_ARCH: "64"
+      OPENSSL_PATH: "C:\\OpenSSL-Win64"
 
     # Also test a Python version not pre-installed
     # See: https://github.com/ogrisel/python-appveyor-demo/issues/10
 
-    - PYTHON: "C:\\Python266"
+    - PYTHON: "C:\\Python26"
       PYTHON_VERSION: "2.6.6"
       PYTHON_ARCH: "32"
+      OPENSSL_PATH: "C:\\OpenSSL-Win32"
+
+nuget:
+    account_feed: true
 
 install:
   # Install non-python dependencies using chocolatey package manager
   - choco install -y swig
-  - ps: if ($env:PYTHON_ARCH -eq "32") {choco install -y openssl -version 1.0.2.20150731 -x86}
-  - ps: if ($env:PYTHON_ARCH -eq "64") {choco install -y openssl -version 1.0.2.20150731}
-
   - ECHO "Filesystem root:"
   - ps: "ls \"C:/\""
 
@@ -58,7 +67,7 @@ install:
   - "%CMD_IN_ENV% pip install -r dev-requirements.txt"
 
 build_script:
-  - "%CMD_IN_ENV% python setup.py build_ext --openssl=\"%OPENSSL_PATH%\""
+  - "%CMD_IN_ENV% python setup.py build --openssl=\"%OPENSSL_PATH%\""
 
 test_script:
   - "%CMD_IN_ENV% python setup.py test"
@@ -72,6 +81,5 @@ artifacts:
   # Archive the generated wheel package in the ci.appveyor.com build report.
   - path: dist\*
 
-#on_success:
-#  - TODO: upload the content of dist/*.whl to a public wheelhouse
-#
+on_success:
+    - "twine upload -u %USER% -p %PASS% dist/*"
