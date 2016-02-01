@@ -17,7 +17,20 @@
 #include <openssl/ssl.h>
 #include <openssl/tls1.h>
 #include <openssl/x509.h>
+/*
+WSAPoll is a bad replacement for poll().
+See https://daniel.haxx.se/blog/2012/10/10/wsapoll-is-broken/ for
+reasons.
+Also
+http://thread.gmane.org/gmane.comp.web.curl.library/36487/focus=36494
+and
+http://thread.gmane.org/gmane.comp.web.curl.library/36495
+*/
+#ifdef _WIN32
+#include <winsock2.h>
+#else
 #include <poll.h>
+#endif
 #include <sys/time.h>
 %}
 
@@ -516,7 +529,11 @@ static int ssl_sleep_with_timeout(SSL *ssl, const struct timeval *start,
         return -1;
     }
     Py_BEGIN_ALLOW_THREADS
+    #ifdef _WIN32
+    tmp = WSAPoll(&fd, 1, ms);
+    #else
     tmp = poll(&fd, 1, ms);
+    #endif
     Py_END_ALLOW_THREADS
     switch (tmp) {
     	case 1:
