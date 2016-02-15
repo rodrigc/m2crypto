@@ -511,13 +511,39 @@ X509_NAME_ENTRY *x509_name_entry_create_by_txt(X509_NAME_ENTRY **ne, char *field
     return X509_NAME_ENTRY_create_by_txt( ne, field, type, (unsigned char *)bytes, len);
 }
 
+/*************************************************************************/
+static unsigned long conf_value_hash(const CONF_VALUE *v)
+{
+    return (lh_strhash(v->section) << 2) ^ lh_strhash(v->name);
+}
+
+static int conf_value_cmp(const CONF_VALUE *a, const CONF_VALUE *b)
+{
+    int i;
+
+    if (a->section != b->section) {
+        i = strcmp(a->section, b->section);
+        if (i)
+            return (i);
+    }
+
+    if ((a->name != NULL) && (b->name != NULL)) {
+        i = strcmp(a->name, b->name);
+        return (i);
+    } else if (a->name == b->name)
+        return (0);
+    else
+        return ((a->name == NULL) ? -1 : 1);
+}
+
+
 #if OPENSSL_VERSION_NUMBER >= 0x10000000L
 LHASH_OF(CONF_VALUE) 
 #else
 LHASH
 #endif
 *x509v3_lhash() { 
-    return lh_CONF_VALUE_new();
+    return lh_CONF_VALUE_new(conf_value_hash, conf_value_cmp);
 }
 
 X509V3_CTX *
