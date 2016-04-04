@@ -4,7 +4,7 @@
 
 Copyright (c) 1999 Ng Pheng Siong. All rights reserved."""
 
-from cStringIO import StringIO
+from io import StringIO
 try:
     import unittest2 as unittest
 except ImportError:
