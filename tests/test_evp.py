@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from __future__ import absolute_import
+from __future__ import absolute_import, division
 
 """
 Unit tests for M2Crypto.EVP.
@@ -45,7 +45,6 @@ class EVPTestCase(unittest.TestCase):
     @unittest.skipIf(six.PY3,
                      "test_pem hangs under python3 and is not yet fixed")
     def test_pem(self):
-        self.fail("test_pem hangs under python3 and is not yet fixed")
         rsa = RSA.gen_key(1024, 3, callback=self._gen_callback)
         pkey = EVP.PKey()
         pkey.assign_rsa(rsa)
@@ -159,7 +158,6 @@ class EVPTestCase(unittest.TestCase):
         """
         Testing retrieving the RSA key from the PKey instance.
         """
-        self.fail("test_get_rsa hangs under python3 and is not yet fixed")
         rsa = RSA.gen_key(1024, 3, callback=self._gen_callback)
         self.assertIsInstance(rsa, RSA.RSA)
         pkey = EVP.PKey()
@@ -192,7 +190,6 @@ class EVPTestCase(unittest.TestCase):
         """
         Testing creating a PKey instance from PEM string.
         """
-        self.fail("test_load_key_string_pubkey hangs under python3 and is not yet fixed")
         rsa = RSA.gen_key(1024, 3, callback=self._gen_callback)
         self.assertIsInstance(rsa, RSA.RSA)
 
@@ -451,7 +448,7 @@ class CipherTestCase(unittest.TestCase):
             # Our key for this test is 256 bits in length (32 bytes).
             # We will trim it to the appopriate length for testing AES-128
             # and AES-192 as well (so 16 and 24 bytes, respectively).
-            key_truncated = key[0:(key_size / 8)]
+            key_truncated = key[0:(key_size // 8)]
 
             # Test encrypt operations
             cipher = EVP.Cipher(alg=alg, key=key_truncated, iv=nonce, op=op)
@@ -463,7 +460,10 @@ class CipherTestCase(unittest.TestCase):
             cipher = EVP.Cipher(alg=alg, key=key_truncated, iv=nonce, op=op)
             plaintext = cipher.update(ciphertext_values[str(key_size)])
             plaintext = plaintext + cipher.final()
-            self.assertEqual(plaintext, plaintext_value)
+            # XXX not quite sure this is the actual intention
+            # but for now let's be happy to find the same content even if with
+            # a different type - XXX
+            self.assertEqual(util.py3str(plaintext), plaintext_value)
 
     def test_raises(self):
         def _cipherFilter(cipher, inf, outf):  # noqa
@@ -506,10 +506,11 @@ class PBKDF2TestCase(unittest.TestCase):
         iter = 5
         keylen = 8
         ret = EVP.pbkdf2(password, salt, iter, keylen)
-        self.assertEqual(hexlify(ret), b'D1 DA A7 86 15 F2 87 E6'.
-                         replace(' ', '').lower())
+        self.assertEqual(hexlify(ret), util.py3bytes('D1 DA A7 86 15 F2 87 E6'.
+                         replace(' ', '').lower()))
 
-        password = b'All n-entities must communicate with other n-entities via n-1 entiteeheehees'
+        password = b'All n-entities must communicate with other n-entities' + \
+            b' via n-1 entiteeheehees'
         salt = unhexlify('12 34 56 78 78 56 34 12'.replace(' ', ''))
         iter = 500
         keylen = 16
