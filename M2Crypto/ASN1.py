@@ -8,17 +8,17 @@ Copyright (c) 1999-2004 Ng Pheng Siong. All rights reserved.
 Portions created by Open Source Applications Foundation (OSAF) are
 Copyright (C) 2005 OSAF. All Rights Reserved.
 """
+import datetime
+import time
 
-import time, datetime
-
-from M2Crypto import BIO, m2
+from M2Crypto import BIO, m2, util
 
 MBSTRING_FLAG = 0x1000
 MBSTRING_ASC = MBSTRING_FLAG | 1
 MBSTRING_BMP = MBSTRING_FLAG | 2
 
 
-class ASN1_Integer:
+class ASN1_Integer:  # noqa
 
     m2_asn1_integer_free = m2.asn1_integer_free
 
@@ -33,8 +33,12 @@ class ASN1_Integer:
         if self._pyfree:
             self.m2_asn1_integer_free(self.asn1int)
 
+    @property
+    def int(self):
+        return m2.asn1_integer_get(self.asn1int)
 
-class ASN1_String:
+
+class ASN1_String:  # noqa
 
     m2_asn1_string_free = m2.asn1_string_free
 
@@ -42,10 +46,13 @@ class ASN1_String:
         self.asn1str = asn1str
         self._pyfree = _pyfree
 
-    def __str__(self):
+    def __bytes__(self):
         buf = BIO.MemoryBuffer()
         m2.asn1_string_print(buf.bio_ptr(), self.asn1str)
         return buf.read_all()
+
+    def __str__(self):
+        return self.__bytes__().decode()
 
     def __del__(self):
         if getattr(self, '_pyfree', 0):
@@ -57,10 +64,10 @@ class ASN1_String:
     def as_text(self, flags=0):
         buf = BIO.MemoryBuffer()
         m2.asn1_string_print_ex(buf.bio_ptr(), self.asn1str, flags)
-        return buf.read_all()
+        return util.py3str(buf.read_all())
 
 
-class ASN1_Object:
+class ASN1_Object:  # noqa
 
     m2_asn1_object_free = m2.asn1_object_free
 
@@ -74,6 +81,7 @@ class ASN1_Object:
 
     def _ptr(self):
         return self.asn1obj
+
 
 class _UTC(datetime.tzinfo):
     def tzname(self, dt):
@@ -100,7 +108,6 @@ class LocalTimezone(datetime.tzinfo):
             self._dstoffset = self._stdoffset
         self._dstdiff = self._dstoffset - self._stdoffset
 
-
     def utcoffset(self, dt):
         if self._isdst(dt):
             return self._dstoffset
@@ -125,14 +132,15 @@ class LocalTimezone(datetime.tzinfo):
         return tt.tm_isdst > 0
 
 
-class ASN1_UTCTIME:
+class ASN1_UTCTIME:  # noqa
     _ssl_months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug",
                    "Sep", "Oct", "Nov", "Dec"]
     m2_asn1_utctime_free = m2.asn1_utctime_free
 
     def __init__(self, asn1_utctime=None, _pyfree=0):
         if asn1_utctime is not None:
-            assert m2.asn1_utctime_type_check(asn1_utctime), "'asn1_utctime' type error'"
+            assert m2.asn1_utctime_type_check(asn1_utctime), \
+                "'asn1_utctime' type error'"
             self.asn1_utctime = asn1_utctime
             self._pyfree = _pyfree
         else:
@@ -144,27 +152,31 @@ class ASN1_UTCTIME:
             self.m2_asn1_utctime_free(self.asn1_utctime)
 
     def __str__(self):
-        assert m2.asn1_utctime_type_check(self.asn1_utctime), "'asn1_utctime' type error'"
+        assert m2.asn1_utctime_type_check(self.asn1_utctime), \
+            "'asn1_utctime' type error'"
         buf = BIO.MemoryBuffer()
         m2.asn1_utctime_print(buf.bio_ptr(), self.asn1_utctime)
-        return buf.read_all()
+        return util.py3str(buf.read_all())
 
     def _ptr(self):
-        assert m2.asn1_utctime_type_check(self.asn1_utctime), "'asn1_utctime' type error'"
+        assert m2.asn1_utctime_type_check(self.asn1_utctime), \
+            "'asn1_utctime' type error'"
         return self.asn1_utctime
 
     def set_string(self, string):
         """
         Set time from UTC string.
         """
-        assert m2.asn1_utctime_type_check(self.asn1_utctime), "'asn1_utctime' type error'"
+        assert m2.asn1_utctime_type_check(self.asn1_utctime), \
+            "'asn1_utctime' type error'"
         return m2.asn1_utctime_set_string(self.asn1_utctime, string)
 
     def set_time(self, time):
         """
         Set time from seconds since epoch (long).
         """
-        assert m2.asn1_utctime_type_check(self.asn1_utctime), "'asn1_utctime' type error'"
+        assert m2.asn1_utctime_type_check(self.asn1_utctime), \
+            "'asn1_utctime' type error'"
         return m2.asn1_utctime_set(self.asn1_utctime, time)
 
     def get_datetime(self):
@@ -175,7 +187,8 @@ class ASN1_UTCTIME:
             raise ValueError("Invalid date: %s" % date)
         month, rest = date.split(' ', 1)
         if month not in self._ssl_months:
-            raise ValueError("Invalid date %s: Invalid month: %s" % (date, month))
+            raise ValueError("Invalid date %s: Invalid month: %s" %
+                             (date, month))
         if rest.endswith(' GMT'):
             timezone = UTC
             rest = rest[:-4]
