@@ -27,7 +27,7 @@ unknown_issuer = [
 def ssl_verify_callback(ssl_ctx_ptr, x509_ptr, errnum, errdepth, ok):
     # Deprecated
     from M2Crypto.SSL import Context
-    ssl_ctx = Context.map()[long(ssl_ctx_ptr)]
+    ssl_ctx = Context.ctxmap()[long(ssl_ctx_ptr)]
     if errnum in unknown_issuer:
         if ssl_ctx.get_allow_unknown_ca():
             sys.stderr.write("policy: %s: permitted...\n" %
