@@ -4,26 +4,42 @@
 
 Copyright (c) 1999-2002 Ng Pheng Siong. All rights reserved."""
 
-import os, sys
+import logging
+import os
+import tempfile
 try:
     import unittest2 as unittest
 except ImportError:
     import unittest
 
-import M2Crypto
 from M2Crypto.BIO import File, openfile
+
+log = logging.getLogger(__name__)
+
 
 class FileTestCase(unittest.TestCase):
 
     def setUp(self):
-        self.data = 'abcdef' * 64
-        if sys.platform != 'win32':
-            self.fname = os.tmpnam()
-        else:
-            import tempfile
-            self.fname = tempfile.mktemp()
+        self.data = b'abcdef' * 64
+        self.fd, self.fname = tempfile.mkstemp()
+
+        # mvyskocil: to check leaks of file descriptors
+        self._proc = "/proc/{0}/fd/".format(os.getpid())
+        self.max_fd = self.mfd()
+
+    # FIXME: this indeed does work on Linux and probably other *nixes,
+    # but definitelly
+    #       not on windows, add a fallback method, like
+    #       os.fdopen().fileno()-1
+    def mfd(self):
+        return int(os.listdir(self._proc)[-1])
 
     def tearDown(self):
+
+        self.assertEqual(
+            self.max_fd, self.mfd(),
+            "last test did not close all file descriptors properly")
+
         try:
             os.close(self.fd)
         except OSError:
@@ -60,24 +76,20 @@ class FileTestCase(unittest.TestCase):
 
     def test_use_pyfile(self):
         # First create the file.
-        f = open(self.fname, 'wb')
-        f2 = File(f)
-        f2.write(self.data)
-        f2.close()
+        with open(self.fname, 'wb') as f:
+            f2 = File(f)
+            f2.write(self.data)
+            f2.close()
+
         # Now read the file.
-        f = open(self.fname, 'rb')
-        data = f.read(len(self.data))
-        f.close()
-        self.assertEqual(data, self.data)
+        with open(self.fname, 'rb') as f:
+            in_data = f.read(len(self.data))
+
+        self.assertEqual(len(in_data), len(self.data))
+        self.assertEqual(in_data, self.data)
 
 
 def suite():
-    # Python 2.2 warns that os.tmpnam() is unsafe.
-    try:
-        import warnings
-        warnings.filterwarnings('ignore')
-    except ImportError:
-        pass
     return unittest.makeSuite(FileTestCase)
 
 
