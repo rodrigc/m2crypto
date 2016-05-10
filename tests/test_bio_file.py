@@ -25,7 +25,7 @@ class FileTestCase(unittest.TestCase):
 
     def tearDown(self):
         try:
-            os.unlink(self.fname)
+            os.close(self.fd)
         except OSError:
             pass
 
@@ -37,6 +37,7 @@ class FileTestCase(unittest.TestCase):
         # Now open the file using M2Crypto.BIO.openfile().
         f = openfile(self.fname, 'rb')
         data = f.read(len(self.data))
+        f.close()
         self.assertEqual(data, self.data)
 
     def test_openfile_wb(self):
@@ -47,6 +48,7 @@ class FileTestCase(unittest.TestCase):
         # Now open the file using Python's open().
         f = open(self.fname, 'rb')
         data = f.read(len(self.data))
+        f.close()
         self.assertEqual(data, self.data)
 
     def test_closed(self):
@@ -65,6 +67,7 @@ class FileTestCase(unittest.TestCase):
         # Now read the file.
         f = open(self.fname, 'rb')
         data = f.read(len(self.data))
+        f.close()
         self.assertEqual(data, self.data)
 
 

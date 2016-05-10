@@ -4,11 +4,9 @@ from __future__ import absolute_import
 
 Copyright (c) 1999-2004 Ng Pheng Siong. All rights reserved."""
 
-import io
 import logging
 
 from M2Crypto import m2
-
 
 log = logging.getLogger('BIO')
 
@@ -19,13 +17,14 @@ class BIOError(Exception):
 m2.bio_init(BIOError)
 
 
-class BIO:
+class BIO(object):
 
     """Abstract object interface to the BIO API."""
 
     m2_bio_free = m2.bio_free
 
     def __init__(self, bio=None, _pyfree=0, _close_cb=None):
+        # print("BIO.__init__")
         self.bio = bio
         self._pyfree = _pyfree
         self._close_cb = _close_cb
@@ -33,7 +32,15 @@ class BIO:
         self.write_closed = 0
 
     def __del__(self):
-        if self._pyfree:
+        # print("BIO.__del__")
+        # Thierry: XXX I am seeing something weird here when tracing
+        # __init__ and __del__ calls in this class, I can see at times
+        # __del__ being called more often than __init__ I cannot see any
+        # convincing explanation for that, so doing the quick and dirty
+        # hack for now leads me to this
+        if not hasattr(self, '_pyfree'):
+            pass  # print("OOPS")
+        elif self._pyfree:
             self.m2_bio_free(self.bio)
 
     def _ptr(self):
@@ -52,19 +59,19 @@ class BIO:
         if not self.readable():
             raise IOError('cannot read')
         if size is None:
-            buf = io.BytesIO()
+            buf = bytearray()
             while 1:
                 data = m2.bio_read(self.bio, 4096)
                 if not data:
                     break
-                buf.write(data)
-            return buf.getvalue()
+                buf += data
+            return buf
         elif size == 0:
             return ''
         elif size < 0:
             raise ValueError('read count is negative')
         else:
-            return m2.bio_read(self.bio, size)
+            return bytes(m2.bio_read(self.bio, size))
 
     def readline(self, size=4096):
         if not self.readable():
@@ -89,6 +96,8 @@ class BIO:
     def write(self, data):
         if not self.writeable():
             raise IOError('cannot write')
+        if isinstance(data, unicode):
+            data = data.encode('utf8')
         return m2.bio_write(self.bio, data)
 
     def write_close(self):
@@ -138,7 +147,6 @@ class BIO:
 
 
 class MemoryBuffer(BIO):
-
     """
     Object interface to BIO_s_mem.
 
@@ -150,6 +158,9 @@ class MemoryBuffer(BIO):
     """
 
     def __init__(self, data=None):
+        if data is not None and not isinstance(data, bytes):
+            raise TypeError(
+                "data must be bytes or None, not %s" % (type(data).__name__, ))
         BIO.__init__(self)
         self.bio = m2.bio_new(m2.bio_s_mem())
         self._pyfree = 1
@@ -190,7 +201,16 @@ class File(BIO):
         BIO.__init__(self, _pyfree=1)
         self.pyfile = pyfile
         self.close_pyfile = close_pyfile
-        self.bio = m2.bio_new_fd(pyfile.fileno(), m2.bio_noclose)
+        logging.debug("self.pyfile = %s", self.pyfile)
+        # XXX: mvyskocil, this does not work, however not sure why? Are
+        # there other _fp functions used?
+        # XXX: to make it more weird, using _new_file all tests checking
+        # the output with open(file, 'rb')
+        #     will fail (test_bio_file, part of test_x509)
+        # self.bio = m2.bio_new_fd(pyfile.fileno(), 0)
+        # XXX: however this makes test_evp happy, but breaks
+        # test_bio_file and part of test_x509
+        self.bio = m2.bio_new_file(pyfile.name, pyfile.mode)
 
     def close(self):
         self.closed = 1
@@ -267,7 +287,12 @@ class CipherStream(BIO):
         cipher = getattr(m2, algo, None)
         if cipher is None:
             raise ValueError('unknown cipher', algo)
-        m2.bio_set_cipher(self.bio, cipher(), key, iv, op)
+        else:
+            if isinstance(key, str):
+                key = key.encode('utf8')
+            if isinstance(iv, str):
+                iv = iv.encode('utf8')
+        m2.bio_set_cipher(self.bio, cipher(), key, iv, int(op))
         m2.bio_push(self.bio, self.obio._ptr())
 
 
