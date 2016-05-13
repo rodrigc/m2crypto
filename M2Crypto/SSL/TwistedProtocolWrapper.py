@@ -12,11 +12,10 @@ import twisted.protocols.policies as policies
 import twisted.internet.reactor
 from twisted.protocols.policies import ProtocolWrapper
 from twisted.internet.interfaces import ITLSTransport
-from zope.interface import implements
+from zope.interface import implementer
 
-import M2Crypto # for M2Crypto.BIO.BIOError
-from M2Crypto import m2, X509
-from M2Crypto.SSL import Checker
+from .. import __m2crypto as m2, BIO, X509
+from . import Checker
 
 
 def _alwaysSucceedsPostConnectionCheck(peerX509, expectedHost):
@@ -142,6 +141,7 @@ class _SSLProxy:
             self.m2_ssl_free(self.ssl)
 
 
+@implementer(ITLSTransport)
 class TLSProtocolWrapper(ProtocolWrapper):
     """
     A SSL/TLS protocol wrapper to be used with Twisted. Typically
@@ -149,8 +149,6 @@ class TLSProtocolWrapper(ProtocolWrapper):
     connectSSL, listenTCP, listenSSL functions defined above,
     which will hook in this class.
     """
-
-    implements(ITLSTransport)
 
     def __init__(self, factory, wrappedProtocol, startPassThrough, client,
                  contextFactory, postConnectionCheck):
@@ -263,7 +261,7 @@ class TLSProtocolWrapper(ProtocolWrapper):
             encryptedData = self._encrypt(data)
             ProtocolWrapper.write(self, encryptedData)
             self.helloDone = 1
-        except M2Crypto.BIO.BIOError as e:
+        except BIO.BIOError as e:
             # See http://www.openssl.org/docs/apps/verify.html#DIAGNOSTICS
             # for the error codes returned by SSL_get_verify_result.
             e.args = (m2.ssl_get_verify_result(self.ssl._ptr()), e.args[0])
@@ -305,7 +303,7 @@ class TLSProtocolWrapper(ProtocolWrapper):
 
                 if decryptedData == '' and encryptedData == '':
                     break
-        except M2Crypto.BIO.BIOError as e:
+        except BIO.BIOError as e:
             # See http://www.openssl.org/docs/apps/verify.html#DIAGNOSTICS
             # for the error codes returned by SSL_get_verify_result.
             e.args = (m2.ssl_get_verify_result(self.ssl._ptr()), e.args[0])
@@ -335,7 +333,7 @@ class TLSProtocolWrapper(ProtocolWrapper):
             encryptedData = self._encrypt(clientHello=1)
             ProtocolWrapper.write(self, encryptedData)
             self.helloDone = 1
-        except M2Crypto.BIO.BIOError as e:
+        except BIO.BIOError as e:
             # See http://www.openssl.org/docs/apps/verify.html#DIAGNOSTICS
             # for the error codes returned by SSL_get_verify_result.
             e.args = (m2.ssl_get_verify_result(self.ssl._ptr()), e.args[0])
