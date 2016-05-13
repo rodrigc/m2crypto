@@ -5,10 +5,7 @@ from __future__ import absolute_import, print_function
 Copyright (c) 1999-2002 Ng Pheng Siong. All rights reserved."""
 
 # Python
-try:
-    import socketserver
-except ImportError:
-    import SocketServer as socketserver
+import M2Crypto.six.moves.socketserver as socketserver
 
 # M2Crypto
 from M2Crypto.SSL import SSLError
@@ -50,9 +47,9 @@ class SSLServer(socketserver.TCPServer):
         print('-' * 40)
 
 
-class ForkingSSLServer(SocketServer.ForkingMixIn, SSLServer):
+class ForkingSSLServer(socketserver.ForkingMixIn, SSLServer):
     pass
 
 
-class ThreadingSSLServer(SocketServer.ThreadingMixIn, SSLServer):
+class ThreadingSSLServer(socketserver.ThreadingMixIn, SSLServer):
     pass
