@@ -255,7 +255,7 @@ class X509TestCase(unittest.TestCase):
         cert.set_serial_number(1)
         cert.set_version(2)
         cert.set_subject(sub)
-        t = long(time.time()) + time.timezone
+        t = int(time.time()) + time.timezone
         now = ASN1.ASN1_UTCTIME()
         now.set_time(t)
         now_plus_year = ASN1.ASN1_UTCTIME()
@@ -320,7 +320,7 @@ class X509TestCase(unittest.TestCase):
         cert.set_serial_number(1)
         cert.set_version(2)
         cert.set_subject(sub)
-        t = long(time.time()) + time.timezone
+        t = int(time.time()) + time.timezone
         now = ASN1.ASN1_UTCTIME()
         now.set_time(t)
         now_plus_year = ASN1.ASN1_UTCTIME()
@@ -382,11 +382,12 @@ class X509TestCase(unittest.TestCase):
                                             flags=m2.XN_FLAG_RFC2253),
             '  CN=Proxy,CN=OpenSSL Group,C=UK')
 
-    def make_eecert(self, cacert):
+    @staticmethod
+    def make_eecert(cacert):
         eecert = X509.X509()
         eecert.set_serial_number(2)
         eecert.set_version(2)
-        t = long(time.time()) + time.timezone
+        t = int(time.time()) + time.timezone
         now = ASN1.ASN1_UTCTIME()
         now.set_time(t)
         now_plus_year = ASN1.ASN1_UTCTIME()
@@ -439,7 +440,7 @@ class X509TestCase(unittest.TestCase):
 
     def test_load_der_string(self):
         f = open('tests/x509.der', 'rb')
-        x509 = X509.load_cert_der_string(''.join(f.readlines()))
+        x509 = X509.load_cert_der_string(f.read())
         fp = x509.get_fingerprint('sha1')
         self.assertEqual(fp, self.expected_hash)
 
@@ -562,7 +563,7 @@ class X509TestCase(unittest.TestCase):
 
 class X509StackTestCase(unittest.TestCase):
     def test_make_stack_from_der(self):
-        f = open("tests/der_encoded_seq.b64")
+        f = open("tests/der_encoded_seq.b64", 'rb')
         b64 = f.read(1304)
         seq = base64.decodestring(b64)
         stack = X509.new_stack_from_der(seq)
@@ -578,7 +579,7 @@ class X509StackTestCase(unittest.TestCase):
             "/DC=org/DC=doegrids/OU=Services/CN=host/bosshog.lbl.gov")
 
     def test_make_stack_check_num(self):
-        f = open("tests/der_encoded_seq.b64")
+        f = open("tests/der_encoded_seq.b64", 'rb')
         b64 = f.read(1304)
         seq = base64.decodestring(b64)
         stack = X509.new_stack_from_der(seq)
