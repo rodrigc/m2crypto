@@ -64,7 +64,7 @@ class _M2CryptoBuildExt(build_ext.build_ext):
         # command line option
         if os.name == 'nt':
             self.libraries = ['ssleay32', 'libeay32']
-            self.openssl = 'c:\\pkg'
+            self.openssl = 'c:\\\openssl'
         else:
             self.libraries = ['ssl', 'crypto']
             self.openssl = '/usr'
@@ -188,7 +188,7 @@ def __get_version():  # noqa
     with open('M2Crypto/__init__.py') as init_file:
         for line in init_file:
             if line.startswith('__version__ ='):
-                return line.split('=')[1].strip(string.whitespace+"'")
+                return line.split('=')[1].strip(string.whitespace + "'")
 
 long_description_text = '''\
 M2Crypto is the most complete Python wrapper for OpenSSL featuring RSA, DSA,
