@@ -13,7 +13,7 @@ Copyright 2008 Heikki Toivonen. All rights reserved.
 import logging
 import socket
 
-from M2Crypto import X509, m2, six
+from M2Crypto import X509, m2, six, util
 from M2Crypto.SSL import Checker, timeout
 from M2Crypto.SSL import SSLError
 from M2Crypto.SSL.Cipher import Cipher, Cipher_Stack
@@ -25,9 +25,55 @@ __all__ = ['Connection',
 
 log = logging.getLogger(__name__)
 
+log = logging.getLogger(__name__)
+
 
 def _serverPostConnectionCheck(*args, **kw):
     return 1
+
+
+if six.PY3:
+    class _Socket_fileobject(socket.SocketIO):  # noqa
+        def __init__(self, sock, mode, ssl, timeout):
+            socket.SocketIO.__init__(self, sock, mode)
+            self.ssl = ssl
+            self._timeout = timeout
+
+        def recv_into(self, buff, nbytes=0):
+            """
+            A version of recv() that stores its data into a buffer rather
+            than creating a new string.  Receive up to buffersize bytes from
+            the socket.  If buffersize is not specified (or 0), receive up
+            to the size available in the given buffer.
+
+            :param str buffer: a buffer for the received bytes
+            :param int nbytes: maximum number of bytes to read
+            :return: number of bytes added
+
+            See recv() for documentation about the flags.
+            """
+            n = len(buff) if nbytes == 0 else nbytes
+            log.debug('n = %d', n)
+
+            if n <= 0:
+                raise ValueError('size <= 0')
+            buff = m2.ssl_read(self.ssl, n, self._timeout)
+
+            log.debug('buff = %s', buff)
+            return len(buff)
+
+    # # decorator to implement a method on Connection that
+    # # just forwards to self.socket
+    # # initially done for the makefile method, but
+    # # could be used in a variety of other places as well
+    # def forward_socket(method):
+    #     method_name = method.__name__
+    #     def wrapper(self, *args, **kwds):
+    #         socket_method = getattr(self.socket, method_name)
+    #         return socket_method(*args, **kwds)
+    #     wrapper.__name__ = method_name
+    #     wrapper.__doc__ = method.__doc__
+    #     return wrapper
 
 
 class Connection:
@@ -208,10 +254,10 @@ class Connection:
         return m2.ssl_pending(self.ssl)
 
     def _write_bio(self, data):
-        return m2.ssl_write(self.ssl, data, self._timeout)
+        return m2.ssl_write(self.ssl, util.py3bytes(data), self._timeout)
 
     def _write_nbio(self, data):
-        return m2.ssl_write_nbio(self.ssl, data)
+        return m2.ssl_write_nbio(self.ssl, util.py3bytes(data))
 
     def _read_bio(self, size=1024):
         if size <= 0:
@@ -254,10 +300,10 @@ class Connection:
         return self.socket.fileno()
 
     def getsockopt(self, *args):
-        return apply(self.socket.getsockopt, args)
+        return self.socket.getsockopt(*args)
 
     def setsockopt(self, *args):
-        return apply(self.socket.setsockopt, args)
+        return self.socket.setsockopt(*args)
 
     def get_context(self):
         """Return the SSL.Context object associated with this
@@ -316,8 +362,9 @@ class Connection:
         return Cipher(c)
 
     def get_ciphers(self):
-        """Return an M2Crypto.SSL.Cipher_Stack object for this connection; if the
-        connection has not been initialised with cipher suites, return None.
+        """Return an M2Crypto.SSL.Cipher_Stack object for this
+        connection; if the connection has not been initialised with
+        cipher suites, return None.
         """
         c = m2.ssl_get_ciphers(self.ssl)
         if c is None:
@@ -335,7 +382,7 @@ class Connection:
     def makefile(self, mode='rb', bufsize=-1):
         log.debug('self.socket = %s, mode = "%s", bufsize = %d',
                   self.socket, mode, bufsize)
-        if not six.PY3:
+        if six.PY2:
             return socket._fileobject(self, mode, bufsize)
         else:
             # FIXME This is nonsense, I know, it is here just as filling
