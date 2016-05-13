@@ -92,7 +92,7 @@ class X509_Extension:  # noqa
         """
         Get the extension name, for example 'subjectAltName'.
         """
-        return m2.x509_extension_get_name(self.x509_ext)
+        return util.py3str(m2.x509_extension_get_name(self.x509_ext))
 
     def get_value(self, flag=0, indent=0):
         """
@@ -103,7 +103,7 @@ class X509_Extension:  # noqa
         """
         buf = BIO.MemoryBuffer()
         m2.x509_ext_print(buf.bio_ptr(), self.x509_ext, flag, indent)
-        return buf.read_all()
+        return util.py3str(buf.read_all())
 
 
 class X509_Extension_Stack:  # noqa
@@ -134,7 +134,10 @@ class X509_Extension_Stack:  # noqa
             self.pystack = []  # This must be kept in sync with self.stack
 
     def __del__(self):
-        if getattr(self, '_pyfree', 0):
+        # see BIO.py - unbalanced __init__ / __del__
+        if not hasattr(self, '_pyfree'):
+            pass  # print("OOPS")
+        elif getattr(self, '_pyfree', 0):
             self.m2_sk_x509_extension_free(self.stack)
 
     def __len__(self):
@@ -200,7 +203,7 @@ class X509_Name_Entry:  # noqa
 
     def set_data(self, data, type=ASN1.MBSTRING_ASC):
         return m2.x509_name_entry_set_data(self.x509_name_entry,
-                                           type, data)
+                                           type, util.py3bytes(data))
 
     def get_object(self):
         return ASN1.ASN1_Object(
@@ -265,7 +268,8 @@ class X509_Name:  # noqa
         if attr in self.nid:
             assert m2.x509_name_type_check(self.x509_name), \
                 "'x509_name' type error"
-            return m2.x509_name_by_nid(self.x509_name, self.nid[attr])
+            return util.py3str(m2.x509_name_by_nid(self.x509_name,
+                                                   self.nid[attr]))
 
         if attr in self.__dict__:
             return self.__dict__[attr]
@@ -277,7 +281,7 @@ class X509_Name:  # noqa
             assert m2.x509_name_type_check(self.x509_name), \
                 "'x509_name' type error"
             return m2.x509_name_set_by_nid(self.x509_name, self.nid[attr],
-                                           value)
+                                           util.py3bytes(value))
 
         self.__dict__[attr] = value
 
@@ -290,7 +294,7 @@ class X509_Name:  # noqa
         return X509_Name_Entry(m2.x509_name_get_entry(self.x509_name, idx))
 
     def __iter__(self):
-        for i in xrange(self.entry_count()):
+        for i in range(self.entry_count()):
             yield self[i]
 
     def _ptr(self):
@@ -331,7 +335,7 @@ class X509_Name:  # noqa
             "'x509_name' type error"
         buf = BIO.MemoryBuffer()
         m2.x509_name_print_ex(buf.bio_ptr(), self.x509_name, indent, flags)
-        return buf.read_all()
+        return util.py3str(buf.read_all())
 
     def as_der(self):
         assert m2.x509_name_type_check(self.x509_name), \
@@ -372,7 +376,7 @@ class X509:
         assert m2.x509_type_check(self.x509), "'x509' type error"
         buf = BIO.MemoryBuffer()
         m2.x509_print(buf.bio_ptr(), self.x509)
-        return buf.read_all()
+        return util.py3str(buf.read_all())
 
     def as_der(self):
         assert m2.x509_type_check(self.x509), "'x509' type error"
@@ -544,6 +548,7 @@ class X509:
         m2x509_extension_get_name = m2.x509_extension_get_name
         x509 = self.x509
 
+        name = util.py3bytes(name)
         for i in range(m2.x509_get_ext_count(x509)):
             ext_ptr = m2x509_get_ext(x509, i)
             if m2x509_extension_get_name(ext_ptr) == name:
@@ -626,7 +631,7 @@ class X509:
         md = EVP.MessageDigest(md)
         md.update(der)
         digest = md.final()
-        return binascii.hexlify(digest).upper()
+        return util.py3str(binascii.hexlify(digest).upper())
 
 
 def load_cert(file, format=FORMAT_PEM):
@@ -694,6 +699,7 @@ def load_cert_string(string, format=FORMAT_PEM):
     @rtype: M2Crypto.X509.X509
     @return: M2Crypto.X509.X509 object.
     """
+    string = util.py3bytes(string)
     bio = BIO.MemoryBuffer(string)
     return load_cert_bio(bio, format)
 
@@ -708,6 +714,7 @@ def load_cert_der_string(string):
     @rtype: M2Crypto.X509.X509
     @return: M2Crypto.X509.X509 object.
     """
+    string = util.py3bytes(string)
     bio = BIO.MemoryBuffer(string)
     cptr = m2.d2i_x509(bio._ptr())
     if cptr is None:
@@ -727,7 +734,10 @@ class X509_Store_Context:  # noqa
         self._pyfree = _pyfree
 
     def __del__(self):
-        if self._pyfree:
+        # see BIO.py - unbalanced __init__ / __del__
+        if not hasattr(self, '_pyfree'):
+            pass  # print("OOPS")
+        elif self._pyfree:
             self.m2_x509_store_ctx_free(self.ctx)
 
     def _ptr(self):
@@ -885,6 +895,7 @@ def new_stack_from_der(der_string):
 
     @return: X509_Stack
     """
+    der_string = util.py3bytes(der_string)
     stack_ptr = m2.make_stack_from_der_sequence(der_string)
     if stack_ptr is None:
         raise X509Error(Err.get_error())
@@ -913,7 +924,7 @@ class Request:
     def as_text(self):
         buf = BIO.MemoryBuffer()
         m2.x509_req_print(buf.bio_ptr(), self.req)
-        return buf.read_all()
+        return util.py3str(buf.read_all())
 
     def as_pem(self):
         buf = BIO.MemoryBuffer()
@@ -1092,6 +1103,7 @@ def load_request_string(string, format=FORMAT_PEM):
     @rtype: M2Crypto.X509.Request
     @return: M2Crypto.X509.Request object.
     """
+    string = util.py3bytes(string)
     bio = BIO.MemoryBuffer(string)
     return load_request_bio(bio, format)
 
@@ -1106,6 +1118,7 @@ def load_request_der_string(string):
     @rtype: M2Crypto.X509.Request
     @return: M2Crypto.X509.Request object.
     """
+    string = util.py3bytes(string)
     bio = BIO.MemoryBuffer(string)
     return load_request_bio(bio, FORMAT_DER)
 
@@ -1138,7 +1151,7 @@ class CRL:
         """
         buf = BIO.MemoryBuffer()
         m2.x509_crl_print(buf.bio_ptr(), self.crl)
-        return buf.read_all()
+        return util.py3str(buf.read_all())
 
 
 def load_crl(file):
