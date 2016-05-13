@@ -38,17 +38,28 @@ extern ASN1_STRING *ASN1_STRING_new( void );
 extern void ASN1_STRING_free( ASN1_STRING *);
 
 %typemap(in) (const void *, int) { 
+#if PY_MAJOR_VERSION >= 3
+    if (PyBytes_Check($input)) {
+        Py_ssize_t len;
+
+        $1 = PyBytes_AsString($input); 
+        len = PyBytes_Size($input);
+#else 
     if (PyString_Check($input)) {
         Py_ssize_t len;
 
         $1 = PyString_AsString($input); 
         len = PyString_Size($input);
+
+#endif // PY_MAJOR_VERSION >= 3
+
         if (len > INT_MAX) {
             PyErr_SetString(PyExc_ValueError, "object too large");
             return NULL;
         }
         $2 = len;
-    } else {
+    } 
+	else {
         PyErr_SetString(PyExc_TypeError, "expected string");
         return NULL;
     }
@@ -142,8 +153,13 @@ int asn1_integer_set(ASN1_INTEGER *asn1, PyObject *value) {
     BIGNUM *bn = NULL;
     PyObject *fmt, *args, *hex;
 
+#if PY_MAJOR_VERSION >= 3
+    if (PyLong_Check(value))
+        return ASN1_INTEGER_set(asn1, PyLong_AsLong(value));
+#else
     if (PyInt_Check(value))
         return ASN1_INTEGER_set(asn1, PyInt_AS_LONG(value));
+#endif // PY_MAJOR_VERSION >= 3
 
     if (!PyLong_Check(value)){
         PyErr_SetString(PyExc_TypeError, "expected int or long");
