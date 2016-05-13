@@ -11,10 +11,9 @@ try:
 except ImportError:
     import unittest
 
-from M2Crypto import EVP, Rand
+from M2Crypto import EVP, Rand, util
 from M2Crypto.AuthCookie import AuthCookie, AuthCookieJar, mix, unmix, unmix3
-
-from six.moves.http_cookies import SimpleCookie, SmartCookie
+from M2Crypto.six.moves.http_cookies import SimpleCookie
 
 
 class AuthCookieTestCase(unittest.TestCase):
@@ -44,9 +43,8 @@ class AuthCookieTestCase(unittest.TestCase):
         # Peek inside the cookie jar...
         key = self.jar._key
         mac = str(binascii.b2a_base64(EVP.hmac(key,
-            bytes(mix(self.exp, self.data), "ascii"),
-            'sha1'))[:-1],
-            'ascii')
+                  util.py3bytes(mix(self.exp, self.data)),
+                  'sha1'))[:-1])
         self.assertEqual(c.mac(), mac)
         # Ok, stop peeking now.
         cookie_str = self._format % (repr(self.exp), self.data, mac)
@@ -87,16 +85,15 @@ class AuthCookieTestCase(unittest.TestCase):
 
     def test_mix_unmix3(self):
         c = self.jar.makeCookie(self.exp, self.data)
-        s = SmartCookie()
+        s = SimpleCookie()
         s.load(c.output())
         exp, data, digest = unmix3(s[self._token].value)
         self.assertEqual(data, self.data)
         self.assertEqual(float(exp), self.exp)
         key = self.jar._key     # Peeking...
         mac = str(binascii.b2a_base64(EVP.hmac(key,
-            bytes(mix(self.exp, self.data), 'ascii'),
-            'sha1'))[:-1],
-            'ascii')
+                  util.py3bytes(mix(self.exp, self.data)),
+                  'sha1'))[:-1])
         self.assertEqual(digest, mac)
 
     def test_cookie_str(self):
@@ -105,47 +102,47 @@ class AuthCookieTestCase(unittest.TestCase):
 
     def test_cookie_str2(self):
         c = self.jar.makeCookie(self.exp, self.data)
-        s = SmartCookie()
+        s = SimpleCookie()
         s.load(c.output())
         self.assertTrue(self.jar.isGoodCookieString(s.output()))
 
     def test_cookie_str_expired(self):
         t = self.exp - 7200
         c = self.jar.makeCookie(t, self.data)
-        s = SmartCookie()
+        s = SimpleCookie()
         s.load(c.output())
         self.assertFalse(self.jar.isGoodCookieString(s.output()))
 
     def test_cookie_str_arbitrary_change(self):
         c = self.jar.makeCookie(self.exp, self.data)
         cout = c.output()
-        str = cout[:32] + 'this is bad' + cout[32:]
-        s = SmartCookie()
-        s.load(str)
+        cout_str = cout[:32] + 'this is bad' + cout[32:]
+        s = SimpleCookie()
+        s.load(cout_str)
         self.assertFalse(self.jar.isGoodCookieString(s.output()))
 
     def test_cookie_str_changed_exp(self):
         c = self.jar.makeCookie(self.exp, self.data)
         cout = c.output()
-        str = cout[:26] + '2' + cout[27:]
+        cout_str = cout[:26] + '2' + cout[27:]
         s = SimpleCookie()
-        s.load(str)
+        s.load(cout_str)
         self.assertFalse(self.jar.isGoodCookieString(s.output()))
 
     def test_cookie_str_changed_data(self):
         c = self.jar.makeCookie(self.exp, self.data)
         cout = c.output()
-        str = cout[:36] + 'X' + cout[37:]
+        cout_str = cout[:36] + 'X' + cout[37:]
         s = SimpleCookie()
-        s.load(str)
+        s.load(cout_str)
         self.assertFalse(self.jar.isGoodCookieString(s.output()))
 
     def test_cookie_str_changed_mac(self):
         c = self.jar.makeCookie(self.exp, self.data)
         cout = c.output()
-        str = cout[:76] + 'X' + cout[77:]
+        cout_str = cout[:76] + 'X' + cout[77:]
         s = SimpleCookie()
-        s.load(str)
+        s.load(cout_str)
         self.assertFalse(self.jar.isGoodCookieString(s.output()))
 
 
