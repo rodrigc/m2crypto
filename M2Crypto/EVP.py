@@ -64,6 +64,8 @@ class MessageDigest:
 
         @return: -1 for Python error, 1 for success, 0 for OpenSSL failure.
         """
+        data = util.py3bytes(data)
+
         return m2.digest_update(self.ctx, data)
 
     def final(self):
@@ -133,12 +135,28 @@ class Cipher:
             self.m2_cipher_ctx_free(self.ctx)
 
     def update(self, data):
+        data = util.py3bytes(data)
         return m2.cipher_update(self.ctx, data)
 
     def final(self):
         return m2.cipher_final(self.ctx)
 
-    def set_padding(self, padding=1):
+    # FIXME duplicate defintion
+    # def set_padding(self, padding=1):
+    #     return m2.cipher_set_padding(self.ctx, padding)
+
+    def set_padding(self, enabled=True):
+        padding = 0
+        if enabled:
+            padding = 1
+
+        return m2.cipher_set_padding(self.ctx, padding)
+
+    def set_padding(self, enabled=True):
+        padding = 0
+        if enabled:
+            padding = 1
+
         return m2.cipher_set_padding(self.ctx, padding)
 
 
