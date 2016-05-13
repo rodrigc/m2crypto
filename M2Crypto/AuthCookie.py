@@ -4,13 +4,14 @@ from __future__ import absolute_import
 
 Copyright (c) 1999-2002 Ng Pheng Siong. All rights reserved."""
 
-import Cookie
 import binascii
 import re
 import time
 
 # M2Crypto
-from M2Crypto import Rand, m2, six
+from M2Crypto import Rand, m2, util
+
+from M2Crypto.six.moves.http_cookies import SimpleCookie
 
 
 _MIX_FORMAT = 'exp=%s&data=%s&digest='
@@ -48,9 +49,9 @@ class AuthCookieJar:
         self._key = Rand.rand_bytes(self._keylen)
 
     def _hmac(self, key, data):
-        return six.b(binascii.b2a_base64(m2.hmac(key,
-                                         six.b(data),
-                                         m2.sha1()))[:-1])
+        return str(binascii.b2a_base64(m2.hmac(key,
+                                       util.py3bytes(data),
+                                       m2.sha1()))[:-1])
 
     def makeCookie(self, expiry, data):
         dough = mix(expiry, data)
@@ -67,7 +68,7 @@ class AuthCookieJar:
             and (c.output() == cookie.output())
 
     def isGoodCookieString(self, cookie_str):
-        c = Cookie.SmartCookie()
+        c = SimpleCookie()
         c.load(cookie_str)
         if _TOKEN not in c:
             return 0
@@ -85,7 +86,7 @@ class AuthCookie:
         self._expiry = expiry
         self._data = data
         self._mac = mac
-        self._cookie = Cookie.SmartCookie()
+        self._cookie = SimpleCookie()
         self._cookie[_TOKEN] = '%s%s' % (dough, mac)
         self._name = '%s%s' % (dough, mac)  # XXX WebKit only.
 
@@ -112,7 +113,8 @@ class AuthCookie:
 
     def isExpired(self):
         """Return 1 if the cookie has expired, 0 otherwise."""
-        return (time.time() > self._expiry)
+        return isinstance(self._expiry, (float, int)) and \
+            (time.time() > self._expiry)
 
     # XXX Following methods are for WebKit only. These should be pushed
     # to WKAuthCookie.
