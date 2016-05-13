@@ -250,63 +250,6 @@ class HttpslibSSLClientTestCase(BaseSSLClientTestCase):
         finally:
             self.stop_server(pid)
 
-    def test_HTTPS(self):
-        pid = self.start_server(self.args)
-        try:
-            from M2Crypto import httpslib
-            c = httpslib.HTTPS(srv_host, self.srv_port)
-            c.putrequest('GET', '/')
-            c.putheader('Accept', 'text/html')
-            c.putheader('Accept', 'text/plain')
-            c.endheaders()
-            err, msg, headers = c.getreply()
-            self.assertEqual(err, 200, err)
-            f = c.getfile()
-            data = f.read()
-            c.close()
-        finally:
-            self.stop_server(pid)
-        self.assertIn('s_server -quiet -www', data)
-
-    def test_HTTPS_secure_context(self):
-        pid = self.start_server(self.args)
-        try:
-            from M2Crypto import httpslib
-            ctx = SSL.Context()
-            ctx.set_verify(SSL.verify_peer | SSL.verify_fail_if_no_peer_cert,
-                           9)
-            ctx.load_verify_locations('tests/ca.pem')
-            c = httpslib.HTTPS(srv_host, self.srv_port, ssl_context=ctx)
-            c.putrequest('GET', '/')
-            c.putheader('Accept', 'text/html')
-            c.putheader('Accept', 'text/plain')
-            c.endheaders()
-            err, msg, headers = c.getreply()
-            self.assertEqual(err, 200, err)
-            f = c.getfile()
-            data = f.read()
-            c.close()
-        finally:
-            self.stop_server(pid)
-        self.assertIn('s_server -quiet -www', data)
-
-    def test_HTTPS_secure_context_fail(self):
-        pid = self.start_server(self.args)
-        try:
-            from M2Crypto import httpslib
-            ctx = SSL.Context()
-            ctx.set_verify(SSL.verify_peer | SSL.verify_fail_if_no_peer_cert,
-                           9)
-            ctx.load_verify_locations('tests/server.pem')
-            c = httpslib.HTTPS(srv_host, self.srv_port, ssl_context=ctx)
-            c.putrequest('GET', '/')
-            c.putheader('Accept', 'text/html')
-            c.putheader('Accept', 'text/plain')
-            self.assertRaises(SSL.SSLError, c.endheaders)
-            c.close()
-        finally:
-            self.stop_server(pid)
-
     def test_HTTPSConnection_illegalkeywordarg(self):
         from M2Crypto import httpslib
         self.assertRaises(ValueError, httpslib.HTTPSConnection, 'example.org',
@@ -1002,16 +945,15 @@ class TwistedSSLClientTestCase(BaseSSLClientTestCase):
         pid = self.start_server(self.args)
         try:
             from M2Crypto import httpslib
-            c = httpslib.HTTPS(srv_host, self.srv_port)
+            c = httpslib.HTTPSConnection(srv_host, self.srv_port)
             c.putrequest('GET', '/')
             c.putheader('Accept', 'text/html')
             c.putheader('Accept', 'text/plain')
             c.endheaders()
-            c._conn.sock.settimeout(100)
-            err, msg, headers = c.getreply()
-            self.assertEqual(err, 200, err)
-            f = c.getfile()
-            data = f.read()
+            c.sock.settimeout(100)
+            resp = c.getresponse()
+            self.assertEqual(resp.status, 200, resp.reason)
+            data = resp.read()
             c.close()
         finally:
             self.stop_server(pid)
@@ -1041,13 +983,13 @@ class TwistedSSLClientTestCase(BaseSSLClientTestCase):
             pid = self.start_server(self.args)
             try:
                 from M2Crypto import httpslib
-                c = httpslib.HTTPS(srv_host, self.srv_port)
+                c = httpslib.HTTPSConnection(srv_host, self.srv_port)
                 c.putrequest('GET', '/' + FIFO_NAME)
                 c.putheader('Accept', 'text/html')
                 c.putheader('Accept', 'text/plain')
                 c.endheaders()
-                c._conn.sock.settimeout(0.0000000001)
-                self.assertRaises(socket.timeout, c.getreply)
+                c.sock.settimeout(0.0000000001)
+                self.assertRaises(socket.timeout, c.getresponse)
                 c.close()
             finally:
                 self.stop_server(pid)

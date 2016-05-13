@@ -13,6 +13,7 @@ from xmlrpclib import *  # noqa
 
 __version__ = M2Crypto.version
 
+
 class SSL_Transport(Transport):  # noqa
 
     user_agent = "M2Crypto_XMLRPC/%s - %s" % (__version__,
@@ -30,7 +31,8 @@ class SSL_Transport(Transport):  # noqa
         # Handle username and password.
         user_passwd, host_port = m2urllib.splituser(host)
         _host, _port = m2urllib.splitport(host_port)
-        h = httpslib.HTTPS(_host, int(_port), ssl_context=self.ssl_ctx)
+        h = httpslib.HTTPSConnection(_host, int(_port),
+                                     ssl_context=self.ssl_ctx)
         if verbose:
             h.set_debuglevel(1)
 

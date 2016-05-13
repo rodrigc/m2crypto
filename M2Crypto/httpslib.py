@@ -5,12 +5,21 @@ from __future__ import absolute_import
 Copyright (c) 1999-2004 Ng Pheng Siong. All rights reserved."""
 
 import base64
+import logging
 import socket
 
-from M2Crypto import SSL
-from urlparse import urlsplit, urlunsplit
-from httplib import *  # noqa
-from httplib import HTTPS_PORT  # This is not imported with just '*'
+from M2Crypto import SSL, six
+from M2Crypto.six.moves.http_client import HTTPS_PORT  # not imported with just '*'
+from M2Crypto.six.moves.urllib_parse import urlsplit, urlunsplit
+
+# six.moves doesn't support star imports
+if six.PY3:
+    from http.client import *  # noqa
+else:
+    from httplib import *  # noqa
+
+log = logging.getLogger(__name__)
+
 
 class HTTPSConnection(HTTPConnection):
 
@@ -22,7 +31,7 @@ class HTTPSConnection(HTTPConnection):
 
     def __init__(self, host, port=None, strict=None, **ssl):
         self.session = None
-        keys = ssl.keys()
+        keys = list(ssl.keys())
         try:
             keys.remove('key_file')
         except ValueError:
@@ -97,22 +106,7 @@ class HTTPSConnection(HTTPConnection):
         self.session = session
 
 
-class HTTPS(HTTP):
-
-    _connection_class = HTTPSConnection
-
-    def __init__(self, host='', port=None, strict=None, **ssl):
-        HTTP.__init__(self, host, port, strict)
-        try:
-            self.ssl_ctx = ssl['ssl_context']
-        except KeyError:
-            self.ssl_ctx = SSL.Context('sslv23')
-        assert isinstance(self._conn, HTTPSConnection)
-        self._conn.ssl_ctx = self.ssl_ctx
-
-
 class ProxyHTTPSConnection(HTTPSConnection):
-
     """
     An HTTPS Connection that uses a proxy and the CONNECT request.
 
