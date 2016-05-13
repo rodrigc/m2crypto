@@ -8,10 +8,16 @@ import base64
 
 import M2Crypto
 
-from M2Crypto import SSL, httpslib, m2urllib
-from xmlrpclib import *  # noqa
+from M2Crypto import SSL, httpslib, m2urllib, six
 
-__version__ = M2Crypto.version
+# six.moves doesn't support star imports
+if six.PY3:
+    from xmlrpc.client import *  # noqa
+else:
+    from xmlrpclib import *  # noqa
+
+__version__ = M2Crypto.__version__
+
 
 
 class SSL_Transport(Transport):  # noqa
