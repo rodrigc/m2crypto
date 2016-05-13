@@ -6,7 +6,8 @@ Copyright (c) 1999-2004 Ng Pheng Siong. All rights reserved."""
 
 import sys
 
-from M2Crypto import BIO, Err, m2, util
+from M2Crypto import BIO, m2, util
+
 
 class RSAError(Exception):
     pass
@@ -166,11 +167,9 @@ class RSA:
     def check_key(self):
         return m2.rsa_check_key(self.rsa)
 
-    def sign_rsassa_pss(self, digest, algo='sha1', salt_length=20):
+    def sign_rsassa_pss(self, digest, hash_algo='sha1', salt_length=20):
         """
         Signs a digest with the private key using RSASSA-PSS
-
-        @requires: OpenSSL 0.9.7h or later.
 
         @type digest: str
         @param digest: A digest created by using the digest method
@@ -178,25 +177,25 @@ class RSA:
         @type salt_length: int
         @param salt_length: The length of the salt to use
 
-        @type algo: str
-        @param algo: The hash algorithm to use
+        @type hash_algo: str
+        @param hash_algo: The hash algorithm to use
+        Legal values are 'sha1','sha224', 'sha256', 'ripemd160',
+        and 'md5'.
 
         @return: a string which is the signature
         """
-        hash = getattr(m2, algo, None)
-        if hash is None:
-            raise ValueError('not such hash algorithm %s' % algo)
+        hash = getattr(m2, hash_algo, None)
 
-        signature = m2.rsa_padding_add_pkcs1_pss(self.rsa, digest, hash(),
-                                                 salt_length)
+        if hash is None:
+            raise RSAError('not such hash algorithm %s' % hash_algo)
+
+        signature = m2.rsa_padding_add_pkcs1_pss(self.rsa, digest, hash(), salt_length)
 
         return self.private_encrypt(signature, m2.no_padding)
 
-    def verify_rsassa_pss(self, data, signature, algo='sha1', salt_length=20):
+    def verify_rsassa_pss(self, data, signature, hash_algo='sha1', salt_length=20):
         """
         Verifies the signature RSASSA-PSS
-
-        @requires: OpenSSL 0.9.7h or later.
 
         @type data: str
         @param data: Data that has been signed
@@ -207,20 +206,22 @@ class RSA:
         @type salt_length: int
         @param salt_length: The length of the salt that was used
 
-        @type algo: str
-        @param algo: The hash algorithm to use
+        @type hash_algo: str
+        @param hash_algo: The hash algorithm to use
+        Legal values are 'sha1','sha224', 'sha256', 'ripemd160',
+        and 'md5'.
 
-        @return: 1 or 0, depending on whether the signature was
-        verified or not.
+        @return: True or False, depending on whether the signature was
+        verified.
         """
-        hash = getattr(m2, algo, None)
+        hash = getattr(m2, hash_algo, None)
+
         if hash is None:
-            raise ValueError('not such hash algorithm %s' % algo)
+            raise RSAError('not such hash algorithm %s' % hash_algo)
 
         plain_signature = self.public_decrypt(signature, m2.no_padding)
 
-        return m2.rsa_verify_pkcs1_pss(self.rsa, data, plain_signature,
-                                       hash(), salt_length)
+        return m2.rsa_verify_pkcs1_pss(self.rsa, data, plain_signature, hash(), salt_length)
 
     def sign(self, digest, algo='sha1'):
         """
